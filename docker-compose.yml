@@ -1,0 +1,25 @@
+services:
+  api:
+    build:
+      context: ./src/ElectricityPayments.Api
+    ports:
+      - "5080:8080"
+    volumes:
+      - api-data:/data
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+
+  ui:
+    build:
+      context: ./src/electricity-payments-ui
+    ports:
+      - "4200:4200"
+    depends_on:
+      - api
+    volumes:
+      - ./src/electricity-payments-ui:/app
+      - ui-node-modules:/app/node_modules
+
+volumes:
+  api-data:
+  ui-node-modules:

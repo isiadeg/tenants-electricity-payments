@@ -1,0 +1,14 @@
+bin/
+obj/
+App_Data/
+*.db
+*.db-shm
+*.db-wal
+*.log
+
+node_modules/
+dist/
+.angular/
+
+.vs/
+.vscode/
