@@ -1,0 +1,82 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-backend:
+    name: Build & Deploy API
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Publish API
+        run: |
+          dotnet publish src/ElectricityPayments.Api/ElectricityPayments.Api.csproj \
+            -c Release \
+            -o ./publish/api
+
+      - name: Deploy API to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "./publish/api/*"
+          target: "/var/www/electricity-api"
+          strip_components: 2
+
+      - name: Restart API service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            sudo systemctl restart electricity-api
+            sudo systemctl status electricity-api --no-pager
+
+  deploy-frontend:
+    name: Build & Deploy Angular UI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/electricity-payments-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: src/electricity-payments-ui
+
+      - name: Build Angular app
+        run: npm run build
+        working-directory: src/electricity-payments-ui
+
+      - name: Deploy Frontend to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "src/electricity-payments-ui/dist/electricity-payments-ui/*"
+          target: "/var/www/tenants-electricity-payments/frontend"
+          strip_components: 4
