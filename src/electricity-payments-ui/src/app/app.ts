@@ -55,7 +55,7 @@ interface MonthlyTenantSummary {
 })
 export class App {
   private readonly http = inject(HttpClient);
-  private readonly apiBaseUrl = 'http://localhost:5080/api';
+  private readonly apiBaseUrl = '/api';
 
   protected readonly tenants = signal<Tenant[]>([]);
   protected readonly tenantPayments = signal<TenantPayment[]>([]);
