@@ -77,6 +77,6 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          source: "src/electricity-payments-ui/dist/electricity-payments-ui/*"
+          source: "src/electricity-payments-ui/dist/electricity-payments-ui/browser/*"
           target: "/var/www/tenants-electricity-payments/frontend"
-          strip_components: 4
+          strip_components: 5
