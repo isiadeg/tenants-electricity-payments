@@ -17,4 +17,8 @@ public sealed class TenantPayment
     public DateOnly PaidOn { get; set; }
 
     public string? Note { get; set; }
+
+    public int ConfirmedCount { get; set; }
+
+    public int RejectedCount { get; set; }
 }

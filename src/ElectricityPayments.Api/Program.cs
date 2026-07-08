@@ -56,6 +56,16 @@ using (var scope = app.Services.CreateScope())
 
 var api = app.MapGroup("/api");
 
+api.MapPost("/auth/verify", (VerifyPasscodeRequest request, IConfiguration config) =>
+{
+    var configuredPasscode = config["AdminPasscode"] ?? "0Ae:2pWPPP";
+    if (request.Passcode == configuredPasscode)
+    {
+        return Results.Ok();
+    }
+    return Results.Unauthorized();
+});
+
 api.MapGet("/tenants", async (ElectricityPaymentsDbContext db) =>
 {
     var tenants = await db.Tenants
@@ -83,7 +93,48 @@ api.MapPost("/tenants", async (CreateTenantRequest request, ElectricityPaymentsD
     await db.SaveChangesAsync();
 
     return Results.Created($"/api/tenants/{tenant.Id}", new TenantResponse(tenant.Id, tenant.Name, tenant.Unit));
-});
+}).AddEndpointFilter(AdminFilter);
+
+api.MapPut("/tenants/{id:int}", async (int id, CreateTenantRequest request, ElectricityPaymentsDbContext db) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Unit))
+    {
+        return Results.BadRequest("Tenant name and unit are required.");
+    }
+
+    var tenant = await db.Tenants.FindAsync(id);
+    if (tenant is null)
+    {
+        return Results.NotFound("Tenant not found.");
+    }
+
+    tenant.Name = request.Name.Trim();
+    tenant.Unit = request.Unit.Trim();
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new TenantResponse(tenant.Id, tenant.Name, tenant.Unit));
+}).AddEndpointFilter(AdminFilter);
+
+api.MapDelete("/tenants/{id:int}", async (int id, ElectricityPaymentsDbContext db) =>
+{
+    var tenant = await db.Tenants.FindAsync(id);
+    if (tenant is null)
+    {
+        return Results.NotFound("Tenant not found.");
+    }
+
+    var hasPayments = await db.TenantPayments.AnyAsync(p => p.PaidByTenantId == id || p.ReceivedByTenantId == id);
+    var hasTokens = await db.TokenPurchases.AnyAsync(t => t.PurchasedByTenantId == id || t.BeneficiaryTenantId == id);
+    if (hasPayments || hasTokens)
+    {
+        return Results.BadRequest("Cannot delete tenant because they have associated payments or token purchases. Delete those records first.");
+    }
+
+    db.Tenants.Remove(tenant);
+    await db.SaveChangesAsync();
+
+    return Results.NoContent();
+}).AddEndpointFilter(AdminFilter);
 
 api.MapGet("/tenant-payments", async (
     ElectricityPaymentsDbContext db,
@@ -122,7 +173,9 @@ api.MapGet("/tenant-payments", async (
             payment.ReceivedByTenant.Unit,
             payment.Amount,
             payment.PaidOn,
-            payment.Note))
+            payment.Note,
+            payment.ConfirmedCount,
+            payment.RejectedCount))
         .ToListAsync();
 
     return Results.Ok(payments);
@@ -158,6 +211,82 @@ api.MapPost("/tenant-payments", async (CreateTenantPaymentRequest request, Elect
     await db.SaveChangesAsync();
 
     return Results.Created($"/api/tenant-payments/{payment.Id}", payment.Id);
+}).AddEndpointFilter(AdminFilter);
+
+api.MapPut("/tenant-payments/{id:int}", async (int id, CreateTenantPaymentRequest request, ElectricityPaymentsDbContext db) =>
+{
+    if (request.Amount <= 0)
+    {
+        return Results.BadRequest("Payment amount must be greater than zero.");
+    }
+
+    if (request.PaidByTenantId == request.ReceivedByTenantId)
+    {
+        return Results.BadRequest("A tenant payment must move money from one tenant to another tenant.");
+    }
+
+    if (!await TenantsExist(db, request.PaidByTenantId, request.ReceivedByTenantId))
+    {
+        return Results.NotFound("One or both tenants were not found.");
+    }
+
+    var payment = await db.TenantPayments.FindAsync(id);
+    if (payment is null)
+    {
+        return Results.NotFound("Payment record not found.");
+    }
+
+    payment.PaidByTenantId = request.PaidByTenantId;
+    payment.ReceivedByTenantId = request.ReceivedByTenantId;
+    payment.Amount = request.Amount;
+    payment.PaidOn = request.PaidOn;
+    payment.Note = CleanOptionalText(request.Note);
+
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).AddEndpointFilter(AdminFilter);
+
+api.MapDelete("/tenant-payments/{id:int}", async (int id, ElectricityPaymentsDbContext db) =>
+{
+    var payment = await db.TenantPayments.FindAsync(id);
+    if (payment is null)
+    {
+        return Results.NotFound("Payment record not found.");
+    }
+
+    db.TenantPayments.Remove(payment);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).AddEndpointFilter(AdminFilter);
+
+api.MapPost("/tenant-payments/{id:int}/react", async (int id, ReactionRequest request, ElectricityPaymentsDbContext db) =>
+{
+    var payment = await db.TenantPayments.FindAsync(id);
+    if (payment is null)
+    {
+        return Results.NotFound("Payment record not found.");
+    }
+
+    if (request.PreviousReactionType == "confirm")
+    {
+        payment.ConfirmedCount = Math.Max(0, payment.ConfirmedCount - 1);
+    }
+    else if (request.PreviousReactionType == "reject")
+    {
+        payment.RejectedCount = Math.Max(0, payment.RejectedCount - 1);
+    }
+
+    if (request.ReactionType == "confirm")
+    {
+        payment.ConfirmedCount++;
+    }
+    else if (request.ReactionType == "reject")
+    {
+        payment.RejectedCount++;
+    }
+
+    await db.SaveChangesAsync();
+    return Results.Ok(new { payment.ConfirmedCount, payment.RejectedCount });
 });
 
 api.MapGet("/token-purchases", async (
@@ -198,7 +327,9 @@ api.MapGet("/token-purchases", async (
             purchase.Amount,
             purchase.PurchasedOn,
             purchase.TokenNumber,
-            purchase.Note))
+            purchase.Note,
+            purchase.ConfirmedCount,
+            purchase.RejectedCount))
         .ToListAsync();
 
     return Results.Ok(purchases);
@@ -230,6 +361,78 @@ api.MapPost("/token-purchases", async (CreateTokenPurchaseRequest request, Elect
     await db.SaveChangesAsync();
 
     return Results.Created($"/api/token-purchases/{purchase.Id}", purchase.Id);
+}).AddEndpointFilter(AdminFilter);
+
+api.MapPut("/token-purchases/{id:int}", async (int id, CreateTokenPurchaseRequest request, ElectricityPaymentsDbContext db) =>
+{
+    if (request.Amount <= 0)
+    {
+        return Results.BadRequest("Token purchase amount must be greater than zero.");
+    }
+
+    if (!await TenantsExist(db, request.PurchasedByTenantId, request.BeneficiaryTenantId))
+    {
+        return Results.NotFound("One or both tenants were not found.");
+    }
+
+    var purchase = await db.TokenPurchases.FindAsync(id);
+    if (purchase is null)
+    {
+        return Results.NotFound("Token purchase record not found.");
+    }
+
+    purchase.PurchasedByTenantId = request.PurchasedByTenantId;
+    purchase.BeneficiaryTenantId = request.BeneficiaryTenantId;
+    purchase.Amount = request.Amount;
+    purchase.PurchasedOn = request.PurchasedOn;
+    purchase.TokenNumber = CleanOptionalText(request.TokenNumber);
+    purchase.Note = CleanOptionalText(request.Note);
+
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).AddEndpointFilter(AdminFilter);
+
+api.MapDelete("/token-purchases/{id:int}", async (int id, ElectricityPaymentsDbContext db) =>
+{
+    var purchase = await db.TokenPurchases.FindAsync(id);
+    if (purchase is null)
+    {
+        return Results.NotFound("Token purchase record not found.");
+    }
+
+    db.TokenPurchases.Remove(purchase);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).AddEndpointFilter(AdminFilter);
+
+api.MapPost("/token-purchases/{id:int}/react", async (int id, ReactionRequest request, ElectricityPaymentsDbContext db) =>
+{
+    var purchase = await db.TokenPurchases.FindAsync(id);
+    if (purchase is null)
+    {
+        return Results.NotFound("Token purchase record not found.");
+    }
+
+    if (request.PreviousReactionType == "confirm")
+    {
+        purchase.ConfirmedCount = Math.Max(0, purchase.ConfirmedCount - 1);
+    }
+    else if (request.PreviousReactionType == "reject")
+    {
+        purchase.RejectedCount = Math.Max(0, purchase.RejectedCount - 1);
+    }
+
+    if (request.ReactionType == "confirm")
+    {
+        purchase.ConfirmedCount++;
+    }
+    else if (request.ReactionType == "reject")
+    {
+        purchase.RejectedCount++;
+    }
+
+    await db.SaveChangesAsync();
+    return Results.Ok(new { purchase.ConfirmedCount, purchase.RejectedCount });
 });
 
 api.MapGet("/summary/monthly", async (ElectricityPaymentsDbContext db, int year, int month) =>
@@ -284,6 +487,18 @@ api.MapGet("/summary/monthly", async (ElectricityPaymentsDbContext db, int year,
 });
 
 app.Run();
+
+static async ValueTask<object?> AdminFilter(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+{
+    var config = context.HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+    var configuredPasscode = config["AdminPasscode"] ?? "0Ae:2pWPPP";
+    if (!context.HttpContext.Request.Headers.TryGetValue("X-Admin-Passcode", out var headerPasscode) ||
+        headerPasscode != configuredPasscode)
+    {
+        return Results.Unauthorized();
+    }
+    return await next(context);
+}
 
 static IQueryable<T> ApplyDateFilter<T>(
     IQueryable<T> query,

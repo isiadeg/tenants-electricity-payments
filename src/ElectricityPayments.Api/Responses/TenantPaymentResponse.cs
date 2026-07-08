@@ -10,4 +10,6 @@ public sealed record TenantPaymentResponse(
     string ReceivedByUnit,
     decimal Amount,
     DateOnly PaidOn,
-    string? Note);
+    string? Note,
+    int ConfirmedCount,
+    int RejectedCount);

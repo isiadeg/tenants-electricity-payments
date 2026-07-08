@@ -11,4 +11,6 @@ public sealed record TokenPurchaseResponse(
     decimal Amount,
     DateOnly PurchasedOn,
     string? TokenNumber,
-    string? Note);
+    string? Note,
+    int ConfirmedCount,
+    int RejectedCount);

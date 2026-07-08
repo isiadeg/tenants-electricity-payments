@@ -19,4 +19,8 @@ public sealed class TokenPurchase
     public string? TokenNumber { get; set; }
 
     public string? Note { get; set; }
+
+    public int ConfirmedCount { get; set; }
+
+    public int RejectedCount { get; set; }
 }
