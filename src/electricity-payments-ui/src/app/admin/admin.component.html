@@ -1,0 +1,471 @@
+@if (!isLoggedIn()) {
+  <main class="shell auth-shell">
+    <div class="login-panel">
+      <h2>Admin Access</h2>
+      <p>Enter the administrator passcode to manage records.</p>
+      
+      @if (loginError()) {
+        <p class="alert">{{ loginError() }}</p>
+      }
+
+      <label>
+        Passcode
+        <input 
+          type="password" 
+          [ngModel]="loginPasscode()" 
+          (ngModelChange)="updateLoginPasscode($event)" 
+          placeholder="••••••••" 
+          (keyup.enter)="login()"
+        />
+      </label>
+      <button class="primary" (click)="login()">Access Dashboard</button>
+    </div>
+  </main>
+} @else {
+  <main class="shell">
+    <section class="topbar">
+      <div>
+        <p class="eyebrow">Electricity payments</p>
+        <h1>Tenant cash and token log</h1>
+        <p class="intro">Track money paid from one tenant to another, then track who actually bought electricity token and who the token was for.</p>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="month-switcher" aria-label="Current month">
+          <button type="button" (click)="changeMonth(-1)" aria-label="Previous month">‹</button>
+          <span>{{ monthName() }}</span>
+          <button type="button" (click)="changeMonth(1)" aria-label="Next month">›</button>
+        </div>
+        <button type="button" class="logout-btn" (click)="logout()">Log out</button>
+      </div>
+    </section>
+
+    @if (errorMessage()) {
+      <p class="alert">{{ errorMessage() }}</p>
+    }
+
+    <section class="metrics" aria-label="Monthly totals">
+      <article>
+        <span>Cash moved tenant-to-tenant</span>
+        <strong>{{ formatMoney(totalCashMovedThisMonth()) }}</strong>
+      </article>
+      <article>
+        <span>Token value bought for tenants</span>
+        <strong>{{ formatMoney(totalTokenValueThisMonth()) }}</strong>
+      </article>
+      <article>
+        <span>Cash still held by buyers</span>
+        <strong>{{ formatMoney(totalHeldCashBalance()) }}</strong>
+      </article>
+    </section>
+
+    <section class="workspace">
+      <form class="panel" (ngSubmit)="addTenantPayment()">
+        <div class="panel-heading">
+          <h2>Record tenant payment</h2>
+          <span>Cash or transfer between tenants</span>
+        </div>
+
+        <label>
+          Paid by
+          <select
+            [ngModel]="paymentForm().paidByTenantId"
+            (ngModelChange)="updatePaymentForm('paidByTenantId', $event)"
+            name="paidByTenantId"
+          >
+            @for (tenant of tenants(); track tenant.id) {
+              <option [value]="tenant.id">{{ tenant.name }} · {{ tenant.unit }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          Received by
+          <select
+            [ngModel]="paymentForm().receivedByTenantId"
+            (ngModelChange)="updatePaymentForm('receivedByTenantId', $event)"
+            name="receivedByTenantId"
+          >
+            @for (tenant of tenants(); track tenant.id) {
+              <option [value]="tenant.id">{{ tenant.name }} · {{ tenant.unit }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          Amount
+          <input
+            type="number"
+            min="1"
+            inputmode="decimal"
+            [ngModel]="paymentForm().amount"
+            (ngModelChange)="updatePaymentForm('amount', $event)"
+            name="paymentAmount"
+          />
+        </label>
+
+        <label>
+          Paid on
+          <input
+            type="date"
+            [ngModel]="paymentForm().paidOn"
+            (ngModelChange)="updatePaymentForm('paidOn', $event)"
+            name="paidOn"
+          />
+        </label>
+
+        <label>
+          Note
+          <textarea
+            rows="3"
+            placeholder="Cash, transfer ref, who collected..."
+            [ngModel]="paymentForm().note"
+            (ngModelChange)="updatePaymentForm('note', $event)"
+            name="paymentNote"
+          ></textarea>
+        </label>
+
+        <button class="primary" type="submit">Record payment</button>
+      </form>
+
+      <form class="panel" (ngSubmit)="addTokenPurchase()">
+        <div class="panel-heading">
+          <h2>Record token purchase</h2>
+          <span>Buyer may differ from beneficiary</span>
+        </div>
+
+        <label>
+          Purchased by
+          <select
+            [ngModel]="tokenForm().purchasedByTenantId"
+            (ngModelChange)="updateTokenForm('purchasedByTenantId', $event)"
+            name="purchasedByTenantId"
+          >
+            @for (tenant of tenants(); track tenant.id) {
+              <option [value]="tenant.id">{{ tenant.name }} · {{ tenant.unit }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          Token for
+          <select
+            [ngModel]="tokenForm().beneficiaryTenantId"
+            (ngModelChange)="updateTokenForm('beneficiaryTenantId', $event)"
+            name="beneficiaryTenantId"
+          >
+            @for (tenant of tenants(); track tenant.id) {
+              <option [value]="tenant.id">{{ tenant.name }} · {{ tenant.unit }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          Amount
+          <input
+            type="number"
+            min="1"
+            inputmode="decimal"
+            [ngModel]="tokenForm().amount"
+            (ngModelChange)="updateTokenForm('amount', $event)"
+            name="tokenAmount"
+          />
+        </label>
+
+        <label>
+          Purchased on
+          <input
+            type="date"
+            [ngModel]="tokenForm().purchasedOn"
+            (ngModelChange)="updateTokenForm('purchasedOn', $event)"
+            name="purchasedOn"
+          />
+        </label>
+
+        <label>
+          Token number
+          <input
+            type="text"
+            [ngModel]="tokenForm().tokenNumber"
+            (ngModelChange)="updateTokenForm('tokenNumber', $event)"
+            name="tokenNumber"
+          />
+        </label>
+
+        <label>
+          Note
+          <textarea
+            rows="3"
+            placeholder="Meter, receipt, token details..."
+            [ngModel]="tokenForm().note"
+            (ngModelChange)="updateTokenForm('note', $event)"
+            name="tokenNote"
+          ></textarea>
+        </label>
+
+        <button class="primary" type="submit">Record token</button>
+      </form>
+
+      <form class="panel compact" (ngSubmit)="addTenant()">
+        <div class="panel-heading">
+          <h2>Add tenant</h2>
+        </div>
+
+        <label>
+          Name
+          <input
+            type="text"
+            [ngModel]="tenantForm().name"
+            (ngModelChange)="updateTenantForm('name', $event)"
+            name="name"
+          />
+        </label>
+
+        <label>
+          Unit
+          <input
+            type="text"
+            placeholder="Flat 3"
+            [ngModel]="tenantForm().unit"
+            (ngModelChange)="updateTenantForm('unit', $event)"
+            name="unit"
+          />
+        </label>
+
+        <button type="submit">Add tenant</button>
+      </form>
+    </section>
+
+    <section class="table-section wide">
+      <div class="section-heading">
+        <h2>Monthly summary</h2>
+        <span>{{ monthName() }}</span>
+      </div>
+
+      @if (isLoading()) {
+        <p class="empty">Loading summary...</p>
+      } @else {
+        <div class="table summary-table">
+          <div class="row header">
+            <span>Tenant</span>
+            <span>Paid out</span>
+            <span>Received</span>
+            <span>Tokens bought</span>
+            <span>Tokens benefited</span>
+            <span>Held balance</span>
+            <span>Actions</span>
+          </div>
+
+          @for (tenant of monthlySummary(); track tenant.tenantId) {
+            <div class="row">
+              <span>
+                <strong>{{ tenant.tenantName }}</strong>
+                <small>{{ tenant.unit }}</small>
+              </span>
+              <span>{{ formatMoney(tenant.cashPaidToOthers) }}</span>
+              <span>{{ formatMoney(tenant.cashReceivedFromOthers) }}</span>
+              <span>{{ formatMoney(tenant.tokenValueBoughtByTenant) }}</span>
+              <span>{{ formatMoney(tenant.tokenValueBoughtForTenant) }}</span>
+              <span>{{ formatMoney(tenant.heldCashBalance) }}</span>
+              <span class="row-actions">
+                <button type="button" class="action-link" (click)="startEditTenant(tenant)">Edit</button>
+                <button type="button" class="action-link danger" (click)="deleteTenant(tenant.tenantId, tenant.tenantName)">Delete</button>
+              </span>
+            </div>
+          }
+        </div>
+      }
+    </section>
+
+    <section class="split">
+      <div class="table-section">
+        <div class="section-heading">
+          <h2>Tenant payments</h2>
+          <span>{{ tenantPayments().length }} records</span>
+        </div>
+
+        @if (tenantPayments().length === 0 && !isLoading()) {
+          <p class="empty">No tenant payments logged for this month yet.</p>
+        } @else {
+          <div class="payments">
+            @for (payment of tenantPayments(); track payment.id) {
+              <article class="payment">
+                <div>
+                  <strong>{{ payment.paidByTenantName }} paid {{ payment.receivedByTenantName }}</strong>
+                  <span>{{ payment.paidByUnit }} → {{ payment.receivedByUnit }} · {{ payment.paidOn }}</span>
+                  @if (payment.note) {
+                    <small>{{ payment.note }}</small>
+                  }
+                </div>
+                <div class="payment-amount-actions">
+                  <b>{{ formatMoney(payment.amount) }}</b>
+                  <div class="row-actions">
+                    <button type="button" class="action-link" (click)="startEditPayment(payment)">Edit</button>
+                    <button type="button" class="action-link danger" (click)="deletePayment(payment.id)">Delete</button>
+                  </div>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="table-section">
+        <div class="section-heading">
+          <h2>Token purchases</h2>
+          <span>{{ tokenPurchases().length }} records</span>
+        </div>
+
+        @if (tokenPurchases().length === 0 && !isLoading()) {
+          <p class="empty">No token purchases logged for this month yet.</p>
+        } @else {
+          <div class="payments">
+            @for (purchase of tokenPurchases(); track purchase.id) {
+              <article class="payment">
+                <div>
+                  <strong>{{ purchase.purchasedByTenantName }} bought for {{ purchase.beneficiaryTenantName }}</strong>
+                  <span>{{ purchase.purchasedByUnit }} → {{ purchase.beneficiaryUnit }} · {{ purchase.purchasedOn }}</span>
+                  @if (purchase.tokenNumber) {
+                    <small>Token: {{ purchase.tokenNumber }}</small>
+                  }
+                  @if (purchase.note) {
+                    <small>{{ purchase.note }}</small>
+                  }
+                </div>
+                <div class="payment-amount-actions">
+                  <b>{{ formatMoney(purchase.amount) }}</b>
+                  <div class="row-actions">
+                    <button type="button" class="action-link" (click)="startEditToken(purchase)">Edit</button>
+                    <button type="button" class="action-link danger" (click)="deleteToken(purchase.id)">Delete</button>
+                  </div>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </div>
+    </section>
+  </main>
+}
+
+<!-- Edit Tenant Modal -->
+@if (editingTenant()) {
+  <div class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2>Edit Tenant</h2>
+        <button type="button" class="close-btn" (click)="closeEditTenant()">×</button>
+      </div>
+      <div class="modal-body">
+        <label>
+          Name
+          <input type="text" [(ngModel)]="editTenantForm.name" [ngModelOptions]="{standalone: true}" />
+        </label>
+        <label>
+          Unit
+          <input type="text" [(ngModel)]="editTenantForm.unit" [ngModelOptions]="{standalone: true}" />
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" (click)="closeEditTenant()">Cancel</button>
+        <button type="button" class="primary" (click)="saveTenant()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Edit Payment Modal -->
+@if (editingPayment()) {
+  <div class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2>Edit Tenant Payment</h2>
+        <button type="button" class="close-btn" (click)="closeEditPayment()">×</button>
+      </div>
+      <div class="modal-body">
+        <label>
+          Paid by
+          <select [(ngModel)]="editPaymentForm.paidByTenantId" [ngModelOptions]="{standalone: true}">
+            @for (tenant of tenants(); track tenant.id) {
+              <option [value]="tenant.id">{{ tenant.name }} · {{ tenant.unit }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Received by
+          <select [(ngModel)]="editPaymentForm.receivedByTenantId" [ngModelOptions]="{standalone: true}">
+            @for (tenant of tenants(); track tenant.id) {
+              <option [value]="tenant.id">{{ tenant.name }} · {{ tenant.unit }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Amount
+          <input type="number" min="1" [(ngModel)]="editPaymentForm.amount" [ngModelOptions]="{standalone: true}" />
+        </label>
+        <label>
+          Paid on
+          <input type="date" [(ngModel)]="editPaymentForm.paidOn" [ngModelOptions]="{standalone: true}" />
+        </label>
+        <label>
+          Note
+          <textarea rows="3" [(ngModel)]="editPaymentForm.note" [ngModelOptions]="{standalone: true}"></textarea>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" (click)="closeEditPayment()">Cancel</button>
+        <button type="button" class="primary" (click)="savePayment()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Edit Token Purchase Modal -->
+@if (editingToken()) {
+  <div class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2>Edit Token Purchase</h2>
+        <button type="button" class="close-btn" (click)="closeEditToken()">×</button>
+      </div>
+      <div class="modal-body">
+        <label>
+          Purchased by
+          <select [(ngModel)]="editTokenForm.purchasedByTenantId" [ngModelOptions]="{standalone: true}">
+            @for (tenant of tenants(); track tenant.id) {
+              <option [value]="tenant.id">{{ tenant.name }} · {{ tenant.unit }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Token for
+          <select [(ngModel)]="editTokenForm.beneficiaryTenantId" [ngModelOptions]="{standalone: true}">
+            @for (tenant of tenants(); track tenant.id) {
+              <option [value]="tenant.id">{{ tenant.name }} · {{ tenant.unit }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Amount
+          <input type="number" min="1" [(ngModel)]="editTokenForm.amount" [ngModelOptions]="{standalone: true}" />
+        </label>
+        <label>
+          Purchased on
+          <input type="date" [(ngModel)]="editTokenForm.purchasedOn" [ngModelOptions]="{standalone: true}" />
+        </label>
+        <label>
+          Token number
+          <input type="text" [(ngModel)]="editTokenForm.tokenNumber" [ngModelOptions]="{standalone: true}" />
+        </label>
+        <label>
+          Note
+          <textarea rows="3" [(ngModel)]="editTokenForm.note" [ngModelOptions]="{standalone: true}"></textarea>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" (click)="closeEditToken()">Cancel</button>
+        <button type="button" class="primary" (click)="saveToken()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+}

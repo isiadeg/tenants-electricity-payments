@@ -1,0 +1,781 @@
+:host {
+  display: block;
+  min-height: calc(100vh - 56px);
+  background: #eef0eb;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+.page {
+  width: min(1440px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 24px 0 48px;
+}
+
+/* ── Week navigation bar ──────────────────────── */
+
+.week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding: 14px 20px;
+  background: #ffffff;
+  border: 1px solid #dce0d8;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.nav-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.nav-btn {
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid #d0d6cb;
+  border-radius: 8px;
+  background: #f8faf5;
+  color: #2d5b45;
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.nav-btn:hover {
+  background: #2d5b45;
+  color: white;
+  border-color: #2d5b45;
+}
+
+.today-btn {
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid #2d5b45;
+  border-radius: 8px;
+  background: transparent;
+  color: #2d5b45;
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.today-btn:hover {
+  background: #2d5b45;
+  color: white;
+}
+
+.week-label {
+  font-weight: 900;
+  font-size: 1.05rem;
+  color: #17211b;
+  letter-spacing: -0.01em;
+}
+
+/* ── Payments / Tokens toggle ─────────────────── */
+
+.mode-toggle {
+  display: flex;
+  background: #f0f2ed;
+  border-radius: 22px;
+  padding: 4px;
+  gap: 2px;
+}
+
+.toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: auto;
+  min-height: 34px;
+  padding: 6px 18px;
+  border: none;
+  border-radius: 18px;
+  background: transparent;
+  color: #687268;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: unset;
+}
+
+.toggle-btn:hover {
+  color: #17211b;
+}
+
+.toggle-btn.active {
+  background: #ffffff;
+  color: #17211b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Loading / error states ───────────────────── */
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 300px;
+  color: #687268;
+  font-size: 0.9rem;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #d4e0d8;
+  border-top-color: #2d5b45;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-msg {
+  padding: 12px 16px;
+  background: #fff1ec;
+  border: 1px solid #e3b8a7;
+  border-radius: 10px;
+  color: #8d3922;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+/* ── Calendar grid ────────────────────────────── */
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+/* ── Day column ───────────────────────────────── */
+
+.day-col {
+  background: #ffffff;
+  border: 1px solid #dce0d8;
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 420px;
+  transition: box-shadow 0.15s;
+}
+
+.day-col:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.day-col.weekend {
+  background: #fafbf8;
+}
+
+.day-col.today {
+  border-color: #2d5b45;
+  box-shadow: 0 0 0 2px #2d5b4520;
+}
+
+/* ── Day header ───────────────────────────────── */
+
+.day-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px 10px;
+  border-bottom: 1px solid #eef0eb;
+  background: #f8faf5;
+}
+
+.day-col.today .day-header {
+  background: #2d5b45;
+}
+
+.day-col.weekend .day-header {
+  background: #f4f5f1;
+}
+
+.day-name {
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #8a9e8f;
+}
+
+.day-col.today .day-name {
+  color: #a8d5b5;
+}
+
+.day-num {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #17211b;
+  line-height: 1.1;
+  margin-top: 3px;
+}
+
+.day-col.today .day-num {
+  color: #ffffff;
+}
+
+/* ── Cards container ──────────────────────────── */
+
+.day-cards {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.empty-day {
+  padding: 28px 8px;
+  text-align: center;
+  color: #cdd4ca;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+/* ── Payment card ─────────────────────────────── */
+
+.payment-card {
+  padding: 10px 10px 8px;
+  border-radius: 8px;
+  background: #f4fff9;
+  border: 1px solid #c8e6d4;
+  border-left: 3px solid #2d5b45;
+  cursor: default;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.payment-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(45, 91, 69, 0.14);
+}
+
+.card-payer {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #17211b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-arrow {
+  font-size: 0.68rem;
+  color: #687268;
+  margin: 2px 0;
+}
+
+.card-receiver {
+  font-size: 0.75rem;
+  color: #3a5443;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-amount {
+  font-size: 0.88rem;
+  font-weight: 900;
+  color: #2d5b45;
+  margin-top: 6px;
+}
+
+/* ── Token card ───────────────────────────────── */
+
+.token-card {
+  padding: 10px 10px 8px;
+  border-radius: 8px;
+  background: #fffdf3;
+  border: 1px solid #e8d8a0;
+  border-left: 3px solid #c48c20;
+  cursor: default;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.token-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(196, 140, 32, 0.14);
+}
+
+.card-buyer {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #17211b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-for {
+  font-size: 0.72rem;
+  color: #7a6030;
+  font-weight: 600;
+  margin: 3px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-token-amount {
+  font-size: 0.88rem;
+  font-weight: 900;
+  color: #b07818;
+  margin-top: 6px;
+}
+
+/* ── Shared card note ─────────────────────────── */
+
+.card-note {
+  font-size: 0.68rem;
+  color: #8a9e8f;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Responsive ───────────────────────────────── */
+
+.calendar-scroll-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 12px;
+  padding-bottom: 8px;
+}
+
+.calendar-grid {
+  min-width: 700px; /* ensures 7 columns never collapse */
+}
+
+@media (max-width: 680px) {
+  .week-nav {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .week-label {
+    font-size: 0.95rem;
+  }
+}
+
+/* ── Filters & View Switching ────────────────── */
+.filters-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid #d9dfd4;
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 24px rgba(23, 33, 27, 0.04);
+}
+
+.subview-toggle {
+  display: flex;
+  gap: 4px;
+  background: #f6f7f2;
+  border-radius: 8px;
+  padding: 4px;
+  width: fit-content;
+}
+
+.subview-toggle .toggle-btn {
+  border: none;
+  min-height: auto;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border-radius: 6px;
+  background: transparent;
+  color: #687268;
+  transition: all 0.2s;
+
+  &.active {
+    background: #ffffff;
+    color: #17211b;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+  }
+
+  &:hover:not(.active) {
+    background: rgba(255,255,255,0.4);
+    color: #17211b;
+  }
+}
+
+.filters-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: grid;
+  gap: 6px;
+  flex: 1 1 180px;
+
+  label {
+    font-size: 0.76rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #687268;
+  }
+
+  select {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 12px;
+    border: 1px solid #cbd4c6;
+    border-radius: 8px;
+    background: #fbfcf8;
+    color: #17211b;
+    font: inherit;
+    font-size: 0.88rem;
+    cursor: pointer;
+
+    &:focus {
+      border-color: #2d5b45;
+      outline: none;
+    }
+  }
+}
+
+.reset-filters-btn {
+  background: #fff1ec;
+  border: 1px solid #e3b8a7;
+  color: #8d3922;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 10px 16px;
+  cursor: pointer;
+  min-height: auto;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #ffe5dd;
+    border-color: #d69f8c;
+  }
+}
+
+/* ── Highlighted Card Filter State ────────────── */
+.payment-card.highlighted {
+  border-left-width: 6px;
+  box-shadow: 0 4px 12px rgba(45, 91, 69, 0.15);
+  background: #eefdf4;
+}
+
+.token-card.highlighted {
+  border-left-width: 6px;
+  box-shadow: 0 4px 12px rgba(196, 140, 32, 0.15);
+  background: #fffcee;
+}
+
+/* ── Comparison Cards ─────────────────────────── */
+.comparison-card {
+  background: #ffffff;
+  border: 1px solid #d9dfd4;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 24px rgba(23, 33, 27, 0.04);
+}
+
+.comparison-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #edf0e9;
+  padding-bottom: 12px;
+
+  h3 {
+    font-size: 1.1rem;
+    color: #17211b;
+    margin: 0;
+  }
+
+  span {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #687268;
+  }
+}
+
+.comparison-metrics {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 20px;
+
+  .metric {
+    display: grid;
+    gap: 6px;
+  }
+
+  .label {
+    font-size: 0.8rem;
+    color: #687268;
+  }
+
+  .value {
+    font-size: 1.8rem;
+    font-weight: 900;
+    line-height: 1;
+
+    &.cash {
+      color: #2d5b45;
+    }
+
+    &.token {
+      color: #b07818;
+    }
+  }
+}
+
+.ratio-bar-container {
+  height: 12px;
+  background: #eef5f1; // Cash color base
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 12px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #eef5f1; // Cash color base
+  }
+}
+
+.ratio-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #d8ac4b, #b07818); // Token gold gradient
+  position: relative;
+  transition: width 0.5s ease-out;
+}
+
+.comparison-summary {
+  font-size: 0.9rem;
+  color: #556057;
+  margin: 0;
+}
+
+/* ── Detailed Summary Tab selectors ──────────── */
+.summary-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #cbd4c6;
+  padding-bottom: 8px;
+}
+
+.summary-tabs .tab-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #687268;
+  padding: 8px 16px;
+  cursor: pointer;
+  min-height: auto;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  transition: all 0.15s;
+
+  &:hover {
+    color: #17211b;
+  }
+
+  &.active {
+    color: #2d5b45;
+    border-bottom-color: #2d5b45;
+  }
+}
+
+/* ── Summary Tables Layouts ────────────────────── */
+.summary-table-container {
+  background: #ffffff;
+  border: 1px solid #d9dfd4;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 10px 24px rgba(23, 33, 27, 0.04);
+  overflow-x: auto;
+}
+
+.summary-table-detailed {
+  min-width: 800px;
+  display: grid;
+  row-gap: 4px;
+}
+
+/* Cash Payments Table grid columns (5 columns) */
+.summary-table-detailed:has(.header span:nth-child(5):not(:nth-child(6))) .row {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1.2fr 1.2fr 1.5fr;
+}
+
+/* Token Purchases Table grid columns (6 columns) */
+.summary-table-detailed:has(.header span:nth-child(6)) .row {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1.2fr 1.6fr 1.3fr 1.4fr;
+}
+
+.summary-table-detailed .row {
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #fbfcf8;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+  column-gap: 24px;
+
+  &.header {
+    background: transparent;
+    border-color: transparent;
+    color: #687268;
+    font-size: 0.74rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &.footer {
+    background: #eef2eb;
+    border: 1px solid #cbd4c6;
+    color: #17211b;
+    margin-top: 8px;
+  }
+
+  &.highlighted {
+    background: #f5fbf6;
+    border-color: #c8e6d4;
+    box-shadow: inset 3px 0 0 #2d5b45;
+  }
+}
+
+.summary-table-detailed .highlight-col {
+  background: #f0f7f3;
+  padding: 6px 12px;
+  border-radius: 6px;
+  margin: -6px 0;
+
+  &.text-accent {
+    color: #2d5b45;
+  }
+}
+
+.summary-table-detailed .text-danger {
+  color: #b04e38;
+}
+
+.summary-table-detailed .text-success {
+  color: #2b704c;
+}
+
+.summary-table-detailed .font-bold {
+  font-weight: 800;
+}
+
+.summary-table-detailed .text-right {
+  text-align: right;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .filters-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-group {
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .subview-toggle .toggle-btn,
+  .mode-toggle .toggle-btn,
+  .summary-tabs .tab-btn {
+    padding: 8px 12px;
+    
+    .btn-text {
+      display: none;
+    }
+    
+    .btn-icon {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+  }
+}
+
+/* Card reactions bar */
+.card-reactions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+  padding-top: 6px;
+}
+
+.reaction-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 0.72rem;
+  color: #687268;
+  cursor: pointer;
+  min-height: auto;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+
+  .count {
+    font-weight: 700;
+  }
+
+  &.confirm.active {
+    background: #eef5f1;
+    border-color: #a3d9b9;
+    color: #17211b;
+  }
+
+  &.reject.active {
+    background: #fff1ec;
+    border-color: #f5c8b9;
+    color: #8d3922;
+  }
+}
+

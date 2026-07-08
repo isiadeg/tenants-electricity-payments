@@ -1,0 +1,358 @@
+<div class="page">
+
+  <!-- View Switcher & Filters -->
+  <div class="filters-container">
+    <!-- Sub-view Toggle -->
+    <div class="subview-toggle" role="group" aria-label="Select view">
+      <button 
+        type="button" 
+        class="toggle-btn" 
+        [class.active]="subView() === 'calendar'"
+        (click)="setSubView('calendar')"
+        title="Calendar Grid"
+      >
+        <span class="btn-icon">📅</span>
+        <span class="btn-text">Calendar Grid</span>
+      </button>
+      <button 
+        type="button" 
+        class="toggle-btn" 
+        [class.active]="subView() === 'summary'"
+        (click)="setSubView('summary')"
+        title="Monthly Summary"
+      >
+        <span class="btn-icon">📊</span>
+        <span class="btn-text">Monthly Summary</span>
+      </button>
+    </div>
+
+    <!-- Active Filters -->
+    <div class="filters-row">
+      <!-- Month & Year Jump -->
+      <div class="filter-group">
+        <label for="month-filter">Month</label>
+        <select 
+          id="month-filter"
+          [ngModel]="selectedMonth()" 
+          (ngModelChange)="onMonthChange($event)"
+        >
+          @for (m of monthsList; track m.value) {
+            <option [value]="m.value">{{ m.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="year-filter">Year</label>
+        <select 
+          id="year-filter"
+          [ngModel]="selectedYear()" 
+          (ngModelChange)="onYearChange($event)"
+        >
+          @for (y of yearsList; track y) {
+            <option [value]="y">{{ y }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Tenant Filter -->
+      <div class="filter-group">
+        <label for="tenant-filter">Filter Tenant</label>
+        <select 
+          id="tenant-filter"
+          [ngModel]="selectedTenantId()" 
+          (ngModelChange)="onTenantChange($event)"
+        >
+          <option [value]="null">All Tenants</option>
+          @for (tenant of tenants(); track tenant.id) {
+            <option [value]="tenant.id">{{ tenant.name }} · {{ tenant.unit }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Reset Filters Button -->
+      @if (hasActiveFilters()) {
+        <button type="button" class="reset-filters-btn" (click)="resetFilters()">
+          ✕ Clear Filters
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <p class="error-msg">{{ errorMessage() }}</p>
+  }
+
+  <!-- ── 1. CALENDAR GRID SUB-VIEW ────────────────── -->
+  @if (subView() === 'calendar') {
+    <!-- Week navigation bar -->
+    <div class="week-nav">
+      <div class="nav-controls">
+        <button class="nav-btn" (click)="prevWeek()" aria-label="Previous week">← Prev</button>
+        <button class="nav-btn" (click)="nextWeek()" aria-label="Next week">Next →</button>
+        @if (!isCurrentWeek()) {
+          <button class="today-btn" (click)="goToToday()">Today</button>
+        }
+      </div>
+
+      <span class="week-label">{{ weekLabel() }}</span>
+
+      <!-- Payments / Tokens toggle -->
+      <div class="mode-toggle" role="group" aria-label="View mode">
+        <button
+          class="toggle-btn"
+          [class.active]="mode() === 'payments'"
+          (click)="setMode('payments')"
+          id="toggle-payments"
+          title="Payments"
+        >
+          <span class="btn-icon">💸</span>
+          <span class="btn-text">Payments</span>
+        </button>
+        <button
+          class="toggle-btn"
+          [class.active]="mode() === 'tokens'"
+          (click)="setMode('tokens')"
+          id="toggle-tokens"
+          title="Tokens"
+        >
+          <span class="btn-icon">⚡</span>
+          <span class="btn-text">Tokens</span>
+        </button>
+      </div>
+    </div>
+
+    @if (isLoading()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <span>Loading week data…</span>
+      </div>
+    } @else {
+      <!-- Calendar grid wrapper for horizontal scroll on small screens -->
+      <div class="calendar-scroll-wrapper">
+        <div class="calendar-grid">
+          @for (day of weekDays(); track day.dateStr) {
+            <div class="day-col" [class.today]="day.isToday" [class.weekend]="$index >= 5">
+
+              <!-- Day header -->
+              <div class="day-header">
+                <span class="day-name">{{ day.dayName }}</span>
+                <span class="day-num">{{ day.dayNum }}</span>
+              </div>
+
+              <!-- Cards -->
+              <div class="day-cards">
+                @if (mode() === 'payments') {
+                  @let payments = paymentsForDay(day.dateStr);
+                  @if (payments.length === 0) {
+                    <div class="empty-day">—</div>
+                  } @else {
+                    @for (p of payments; track p.id) {
+                      <div class="payment-card" [class.highlighted]="selectedTenantId() === p.paidByTenantId || selectedTenantId() === p.receivedByTenantId">
+                        <div class="card-payer">{{ p.paidByTenantName }}</div>
+                        <div class="card-arrow">↓ paid</div>
+                        <div class="card-receiver">{{ p.receivedByTenantName }}</div>
+                        <div class="card-amount">{{ formatMoney(p.amount) }}</div>
+                        @if (p.note) {
+                          <div class="card-note">{{ p.note }}</div>
+                        }
+                        <div class="card-reactions">
+                          <button 
+                            type="button" 
+                            class="reaction-btn confirm" 
+                            [class.active]="hasReacted(p.id, 'payment', 'confirm')" 
+                            (click)="react(p.id, 'payment', 'confirm')"
+                          >
+                            👍 <span class="count">{{ p.confirmedCount || 0 }}</span>
+                          </button>
+                          <button 
+                            type="button" 
+                            class="reaction-btn reject" 
+                            [class.active]="hasReacted(p.id, 'payment', 'reject')" 
+                            (click)="react(p.id, 'payment', 'reject')"
+                          >
+                            👎 <span class="count">{{ p.rejectedCount || 0 }}</span>
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  }
+                } @else {
+                  @let tokens = tokensForDay(day.dateStr);
+                  @if (tokens.length === 0) {
+                    <div class="empty-day">—</div>
+                  } @else {
+                    @for (t of tokens; track t.id) {
+                      <div class="token-card" [class.highlighted]="selectedTenantId() === t.purchasedByTenantId || selectedTenantId() === t.beneficiaryTenantId">
+                        <div class="card-buyer">{{ t.purchasedByTenantName }}</div>
+                        <div class="card-for">⚡ for {{ t.beneficiaryTenantName }}</div>
+                        <div class="card-token-amount">{{ formatMoney(t.amount) }}</div>
+                        @if (t.tokenNumber) {
+                          <div class="card-note">{{ t.tokenNumber }}</div>
+                        }
+                        <div class="card-reactions">
+                          <button 
+                            type="button" 
+                            class="reaction-btn confirm" 
+                            [class.active]="hasReacted(t.id, 'token', 'confirm')" 
+                            (click)="react(t.id, 'token', 'confirm')"
+                          >
+                            👍 <span class="count">{{ t.confirmedCount || 0 }}</span>
+                          </button>
+                          <button 
+                            type="button" 
+                            class="reaction-btn reject" 
+                            [class.active]="hasReacted(t.id, 'token', 'reject')" 
+                            (click)="react(t.id, 'token', 'reject')"
+                          >
+                            👎 <span class="count">{{ t.rejectedCount || 0 }}</span>
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  }
+                }
+              </div>
+
+            </div>
+          }
+        </div>
+      </div>
+    }
+  }
+
+  <!-- ── 2. MONTHLY SUMMARY SUB-VIEW ──────────────── -->
+  @if (subView() === 'summary') {
+    @if (isSummaryLoading()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <span>Calculating summary data…</span>
+      </div>
+    } @else {
+      <!-- Comparison Card Panel -->
+      <section class="comparison-card">
+        <div class="comparison-header">
+          <h3>Cash Flow vs. Token Purchases</h3>
+          <span>{{ monthsList[selectedMonth() - 1].name }} {{ selectedYear() }}</span>
+        </div>
+        
+        <div class="comparison-metrics">
+          <div class="metric">
+            <span class="label">Total Tenant Cash Sent</span>
+            <strong class="value cash">{{ formatMoney(totalCashSentSum()) }}</strong>
+          </div>
+          <div class="metric text-right">
+            <span class="label">Total Electricity Tokens Bought</span>
+            <strong class="value token">{{ formatMoney(totalTokensBoughtSum()) }}</strong>
+          </div>
+        </div>
+
+        <div class="ratio-bar-container">
+          <div 
+            class="ratio-bar-fill" 
+            [style.width.%]="cashTokensComparisonPct()"
+            title="Percentage of Tokens Bought out of Total Cash + Tokens"
+          ></div>
+        </div>
+        <p class="comparison-summary">
+          Electricity tokens make up <strong>{{ cashTokensComparisonPct() | number:'1.0-0' }}%</strong> of the total logged financial activities (₦{{ formatMoney(totalCashSentSum() + totalTokensBoughtSum()) }}) for this month.
+        </p>
+      </section>
+
+      <!-- Tab selector for Summary Table -->
+      <div class="summary-tabs">
+        <button 
+          type="button" 
+          class="tab-btn" 
+          [class.active]="summaryTab() === 'payments'"
+          (click)="setSummaryTab('payments')"
+          title="Cash Payments Summary"
+        >
+          <span class="btn-icon">💸</span>
+          <span class="btn-text">Cash Payments Summary</span>
+        </button>
+        <button 
+          type="button" 
+          class="tab-btn" 
+          [class.active]="summaryTab() === 'tokens'"
+          (click)="setSummaryTab('tokens')"
+          title="Token Purchases Summary"
+        >
+          <span class="btn-icon">⚡</span>
+          <span class="btn-text">Token Purchases Summary</span>
+        </button>
+      </div>
+
+      <!-- Summary Tables -->
+      <div class="summary-table-container">
+        @if (summaryTab() === 'payments') {
+          <div class="table summary-table-detailed">
+            <div class="row header">
+              <span>Tenant</span>
+              <span>Unit</span>
+              <span>Cash Sent (Out)</span>
+              <span>Cash Received (In)</span>
+              <span class="text-right highlight-col">Total Outflow</span>
+            </div>
+
+            @for (tenant of monthlySummary(); track tenant.tenantId) {
+              <div 
+                class="row" 
+                [class.highlighted]="tenant.tenantId === selectedTenantId()"
+              >
+                <span><strong>{{ tenant.tenantName }}</strong></span>
+                <span>{{ tenant.unit }}</span>
+                <span class="text-danger">{{ formatMoney(tenant.cashPaidToOthers) }}</span>
+                <span class="text-success">{{ formatMoney(tenant.cashReceivedFromOthers) }}</span>
+                <span class="text-right highlight-col font-bold">{{ formatMoney(getTenantOutflow(tenant)) }}</span>
+              </div>
+            }
+
+            <div class="row footer font-bold">
+              <span>All Tenants (Sum)</span>
+              <span>—</span>
+              <span>{{ formatMoney(totalCashSentSum()) }}</span>
+              <span>{{ formatMoney(totalCashReceivedSum()) }}</span>
+              <span class="text-right highlight-col">{{ formatMoney(totalOutflowSum()) }}</span>
+            </div>
+          </div>
+        } @else {
+          <div class="table summary-table-detailed">
+            <div class="row header">
+              <span>Tenant</span>
+              <span>Unit</span>
+              <span>Tokens Bought</span>
+              <span class="highlight-col">Tokens Benefited (Used)</span>
+              <span>Bought For Self</span>
+              <span class="text-right">Held Cash Balance</span>
+            </div>
+
+            @for (tenant of monthlySummary(); track tenant.tenantId) {
+              <div 
+                class="row" 
+                [class.highlighted]="tenant.tenantId === selectedTenantId()"
+              >
+                <span><strong>{{ tenant.tenantName }}</strong></span>
+                <span>{{ tenant.unit }}</span>
+                <span>{{ formatMoney(tenant.tokenValueBoughtByTenant) }}</span>
+                <span class="highlight-col font-bold text-accent">{{ formatMoney(tenant.tokenValueBoughtForTenant) }}</span>
+                <span>{{ formatMoney(getTokensBoughtForSelf(tenant)) }}</span>
+                <span class="text-right font-bold">{{ formatMoney(tenant.heldCashBalance) }}</span>
+              </div>
+            }
+
+            <div class="row footer font-bold">
+              <span>All Tenants (Sum)</span>
+              <span>—</span>
+              <span>{{ formatMoney(totalTokensBoughtSum()) }}</span>
+              <span class="highlight-col text-accent">{{ formatMoney(totalTokensBenefitedSum()) }}</span>
+              <span>—</span>
+              <span class="text-right">{{ formatMoney(totalHeldBalanceSum()) }}</span>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  }
+
+</div>
