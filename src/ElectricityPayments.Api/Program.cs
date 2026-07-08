@@ -43,6 +43,55 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ElectricityPaymentsDbContext>();
     await db.Database.EnsureCreatedAsync();
 
+    // SQLite Schema Patch: Automatically add ConfirmedCount and RejectedCount columns if they are missing (e.g. on production deployment)
+    try
+    {
+        var connection = db.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+        
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "PRAGMA table_info(TenantPayments);";
+            var hasConfirmed = false;
+            using (var reader = await command.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    if (reader.GetString(1) == "ConfirmedCount")
+                    {
+                        hasConfirmed = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (!hasConfirmed)
+            {
+                using (var alterCmd = connection.CreateCommand())
+                {
+                    alterCmd.CommandText = "ALTER TABLE TenantPayments ADD COLUMN ConfirmedCount INTEGER NOT NULL DEFAULT 0;";
+                    await alterCmd.ExecuteNonQueryAsync();
+                    
+                    alterCmd.CommandText = "ALTER TABLE TenantPayments ADD COLUMN RejectedCount INTEGER NOT NULL DEFAULT 0;";
+                    await alterCmd.ExecuteNonQueryAsync();
+                    
+                    alterCmd.CommandText = "ALTER TABLE TokenPurchases ADD COLUMN ConfirmedCount INTEGER NOT NULL DEFAULT 0;";
+                    await alterCmd.ExecuteNonQueryAsync();
+                    
+                    alterCmd.CommandText = "ALTER TABLE TokenPurchases ADD COLUMN RejectedCount INTEGER NOT NULL DEFAULT 0;";
+                    await alterCmd.ExecuteNonQueryAsync();
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"SQLite Schema Patch Notice: {ex.Message}");
+    }
+
     if (!await db.Tenants.AnyAsync())
     {
         db.Tenants.AddRange(
