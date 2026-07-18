@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  Id                            Int             @id @default(autoincrement())
+  Name                          String
+  Unit                          String
+  PaymentsMade                  TenantPayment[] @relation("PaymentsMade")
+  PaymentsReceived              TenantPayment[] @relation("PaymentsReceived")
+  TokenPurchasesMade            TokenPurchase[] @relation("TokenPurchasesMade")
+  TokenPurchasesBenefitedFrom   TokenPurchase[] @relation("TokenPurchasesBenefitedFrom")
+
+  @@map("Tenants")
+}
+
+model TenantPayment {
+  Id                 Int      @id @default(autoincrement())
+  PaidByTenantId     Int
+  ReceivedByTenantId Int
+  Amount             Decimal
+  PaidOn             String
+  Note               String?
+  ConfirmedCount     Int      @default(0)
+  RejectedCount      Int      @default(0)
+
+  PaidByTenant       Tenant   @relation("PaymentsMade", fields: [PaidByTenantId], references: [Id], onDelete: Cascade)
+  ReceivedByTenant   Tenant   @relation("PaymentsReceived", fields: [ReceivedByTenantId], references: [Id], onDelete: Cascade)
+
+  @@map("TenantPayments")
+}
+
+model TokenPurchase {
+  Id                  Int      @id @default(autoincrement())
+  PurchasedByTenantId Int
+  BeneficiaryTenantId Int
+  Amount              Decimal
+  PurchasedOn         String
+  TokenNumber         String?
+  Note                String?
+  ConfirmedCount      Int      @default(0)
+  RejectedCount       Int      @default(0)
+
+  PurchasedByTenant   Tenant   @relation("TokenPurchasesMade", fields: [PurchasedByTenantId], references: [Id], onDelete: Cascade)
+  BeneficiaryTenant   Tenant   @relation("TokenPurchasesBenefitedFrom", fields: [BeneficiaryTenantId], references: [Id], onDelete: Cascade)
+
+  @@map("TokenPurchases")
+}
