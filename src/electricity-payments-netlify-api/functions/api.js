@@ -9,7 +9,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const libsql = createClient({
-  url: process.env.DATABASE_URL,
+  url: process.env.DATABASE_URL.replace('libsql://', 'https://'),
   authToken: process.env.TURSO_AUTH_TOKEN
 });
 const adapter = new PrismaLibSQL(libsql);
