@@ -12,3 +12,6 @@ dist/
 
 .vs/
 .vscode/
+
+# Local Netlify folder
+.netlify
